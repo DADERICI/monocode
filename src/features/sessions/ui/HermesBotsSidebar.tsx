@@ -40,8 +40,10 @@ import {
 export type HermesBotsProps = {
   /** Profile of the active Hermes chat; `default` when none is set. */
   activeProfile: string;
-  /** Start a new Hermes chat in the current project, run as this profile. */
-  onStartChat: (profile: string) => void;
+  /** Open the bot's ongoing chat in this project, starting it if needed. */
+  onOpenChat: (profile: string) => void;
+  /** Start a separate new chat with the bot. */
+  onNewChat: (profile: string) => void;
   /** Open a file in MonoCode's editor; used to edit a bot's SOUL.md or config. */
   onOpenFile: OpenFileFn;
 };
@@ -86,7 +88,12 @@ function loadAppearance(): Appearance {
 }
 
 const BOT_ACTIONS: TabGroupMenuExtraItem[] = [
-  { id: "chat", label: "New chat", icon: Plus },
+  {
+    id: "chat",
+    label: "New chat",
+    description: "A separate conversation with this bot",
+    icon: Plus,
+  },
   {
     id: "soul",
     label: "Edit soul",
@@ -104,12 +111,14 @@ const BOT_ACTIONS: TabGroupMenuExtraItem[] = [
 /**
  * A sidebar column of Hermes profiles ("bots"), shown beside the workspace
  * sidebar only while the active chat runs on Hermes. Rows look like projects:
- * a pixel mascot and a name. Each bot's menu starts a chat, opens its SOUL.md
- * or config.yaml in the editor, and restyles it like a project.
+ * a pixel mascot and a name. Clicking a bot reopens its ongoing chat; its menu
+ * starts a separate chat, opens its SOUL.md or config.yaml in the editor, and
+ * restyles it like a project.
  */
 export function HermesBotsSidebar({
   activeProfile,
-  onStartChat,
+  onOpenChat,
+  onNewChat,
   onOpenFile,
 }: HermesBotsProps) {
   useSyncExternalStore(
@@ -176,7 +185,7 @@ export function HermesBotsSidebar({
               profile={profile}
               appearance={appearance}
               selected={profile.name === activeProfile}
-              onSelect={() => onStartChat(profile.name)}
+              onSelect={() => onOpenChat(profile.name)}
               onOpenMenu={(x, y) => setMenu({ profile, x, y })}
             />
           ))
@@ -190,7 +199,7 @@ export function HermesBotsSidebar({
           appearance={appearance}
           onClose={() => setMenu(null)}
           onAction={(id) => {
-            if (id === "chat") onStartChat(menu.profile.name);
+            if (id === "chat") onNewChat(menu.profile.name);
             else if (id === "soul") void openSoul(menu.profile);
             else if (id === "config") {
               onOpenFile(`${menu.profile.home}/config.yaml`, undefined, {
@@ -247,7 +256,7 @@ function BotCard({
       <button
         type="button"
         title={title}
-        aria-label={`New chat with ${name}`}
+        aria-label={`Open chat with ${name}`}
         aria-current={selected ? "true" : undefined}
         onClick={onSelect}
         onContextMenu={(event) => {

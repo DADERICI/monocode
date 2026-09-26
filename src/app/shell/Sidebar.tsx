@@ -51,6 +51,12 @@ import { IS_MAC, MOD } from "../../platform/tauri/platform";
 import { resolveModel } from "../../features/sessions/model/models";
 import type { OpenFileFn } from "../../features/search/model/search";
 import { sessionDisplayTitle } from "../../features/sessions/model/session";
+import { botForSession } from "../../features/sessions/model/hermesBotChats";
+import {
+  loadTabGroupLabels,
+  resolveTabGroupLabel,
+} from "../../features/workspace/model/tabGroups";
+import { hermesBotAppearanceKey } from "../../features/sessions/ui/HermesBotsSidebar";
 import { nextUnseenFinishedSessions } from "../../features/sessions/model/sessionDone";
 import { orchestrationTaskLabel } from "../../features/orchestration/model/orchestrationSummary";
 import {
@@ -2773,10 +2779,15 @@ const SessionCard = memo(function SessionCard({
     ? NO_BRANCH_LABEL
     : formatGitLabel(session.repo, session.branch);
   const time = formatRelative(session.updatedAt, now);
+  const bot =
+    session.harness === "hermes" ? botForSession(session.id) : undefined;
+  // A bot chat is labelled by its bot, as its model is the bot's own config.
   const model =
     compact && !orchestrationExpanded
       ? null
-      : resolveModel(session.harness, session.model).name;
+      : bot
+        ? `Bot · ${resolveTabGroupLabel(hermesBotAppearanceKey(bot), loadTabGroupLabels(), bot)}`
+        : resolveModel(session.harness, session.model).name;
   const statusClass = needsApproval
     ? "text-amber-400"
     : busy

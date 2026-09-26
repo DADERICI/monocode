@@ -12,6 +12,7 @@ import {
   resolveModel,
   subscribeModels,
   type ModelSetting,
+  hiddenModelSetting,
 } from "../model/models";
 import type { HarnessId } from "../model/session";
 
@@ -36,7 +37,7 @@ export function ModelSettings({
   const settings = useMemo(() => {
     void catalog;
     const list = (resolveModel(harness, model).settings ?? []).filter(
-      (setting) => !(harness === "opencode" && setting.id === "agent"),
+      (setting) => !hiddenModelSetting(harness, setting.id),
     );
     const order = [
       "variant",

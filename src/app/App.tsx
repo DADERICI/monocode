@@ -62,6 +62,11 @@ import {
 } from "react";
 import { Sidebar } from "./shell/Sidebar";
 import { HermesBotsSidebar } from "../features/sessions/ui/HermesBotsSidebar";
+import {
+  forgetBotChat,
+  ongoingBotChat,
+  rememberBotChat,
+} from "../features/sessions/model/hermesBotChats";
 import { ApprovalToasts } from "../features/sessions/ui/ApprovalToasts";
 import { WhatsNewDialog } from "./shell/WhatsNewDialog";
 import { ProviderSignInDialog } from "../features/sessions/ui/ProviderSignInDialog";
@@ -2141,11 +2146,12 @@ export default function App({
     projectCwd,
   ]);
 
-  // A Bots-tab pick: a fresh Hermes chat run as that profile. The profile is
-  // set after creation because newSession layers the last-used settings on
-  // top, and the catalog may not list the profile yet.
+  // Start a Hermes chat run as a bot (profile). The profile is set after
+  // creation because newSession layers the last-used settings on top, and the
+  // catalog may not list the profile yet. The bot's ongoing chat is named
+  // after the bot and keeps that name, like Hermes Desktop's Bot Chat.
   const onStartBotChat = useCallback(
-    (profile: string) => {
+    (profile: string, ongoing = false) => {
       setSearchViewOpen(false);
       setInboxViewOpen(false);
       setNotesViewOpen(false);
@@ -2158,6 +2164,8 @@ export default function App({
         sessionDefaults?.runtimeMode,
       );
       session.modelSettings = { ...session.modelSettings, profile };
+      if (ongoing) session.title = profile;
+      rememberBotChat(cwd, profile, session.id, ongoing);
       const tab = newTab(session.id);
       setSessions((prev) => [...prev, session]);
       appendTab(tab, cwd);
@@ -5413,6 +5421,31 @@ export default function App({
     [activateTab, insertBesideActive],
   );
 
+  // Clicking a bot reopens its ongoing chat in this project, like Hermes
+  // Desktop's Bot Chat, and only starts one when there is none yet.
+  const onOpenBotChat = useCallback(
+    async (profile: string) => {
+      const cwd = active?.cwd ?? sessionDefaults?.cwd ?? projectCwd;
+      const existing = ongoingBotChat(cwd, profile);
+      if (existing) {
+        if (await ensureOpenSession(existing)) {
+          await onSelectHistorySession(existing);
+          return;
+        }
+        forgetBotChat(existing);
+      }
+      onStartBotChat(profile, true);
+    },
+    [
+      active?.cwd,
+      ensureOpenSession,
+      onSelectHistorySession,
+      onStartBotChat,
+      projectCwd,
+      sessionDefaults?.cwd,
+    ],
+  );
+
   const activeHermesProfile =
     active?.harness === "hermes"
       ? active.modelSettings?.profile || "default"
@@ -5422,11 +5455,12 @@ export default function App({
       activeHermesProfile
         ? {
             activeProfile: activeHermesProfile,
-            onStartChat: onStartBotChat,
+            onOpenChat: (profile: string) => void onOpenBotChat(profile),
+            onNewChat: (profile: string) => onStartBotChat(profile),
             onOpenFile,
           }
         : undefined,
-    [activeHermesProfile, onStartBotChat, onOpenFile],
+    [activeHermesProfile, onOpenBotChat, onStartBotChat, onOpenFile],
   );
 
   const onOpenPlan = useCallback(

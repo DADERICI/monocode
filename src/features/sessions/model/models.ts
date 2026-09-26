@@ -471,10 +471,35 @@ export function loadLastModelSettings(): Record<string, string> {
   try {
     const raw = localStorage.getItem(LAST_MODEL_SETTINGS_KEY);
     if (!raw) return {};
-    return parseStringRecord(JSON.parse(raw));
+    return withoutPerChatSettings(parseStringRecord(JSON.parse(raw)));
   } catch {
     return {};
   }
+}
+
+/**
+ * Settings that belong to one chat and must never carry over to the next,
+ * such as the Hermes profile (bot) a chat runs as.
+ */
+const PER_CHAT_SETTING_IDS = new Set(["profile"]);
+
+function withoutPerChatSettings(
+  settings: Record<string, string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(settings).filter(([id]) => !PER_CHAT_SETTING_IDS.has(id)),
+  );
+}
+
+/**
+ * Settings the model menus never show: OpenCode's agent has its own picker,
+ * and a Hermes chat's profile is fixed by the bot it was started from.
+ */
+export function hiddenModelSetting(harness: HarnessId, id: string): boolean {
+  return (
+    (harness === "opencode" && id === "agent") ||
+    (harness === "hermes" && id === "profile")
+  );
 }
 
 export function saveLastModelSettings(
@@ -482,7 +507,7 @@ export function saveLastModelSettings(
   mode: "overwrite" | "fill" = "overwrite",
 ) {
   const prev = loadLastModelSettings();
-  const incoming = parseStringRecord(settings);
+  const incoming = withoutPerChatSettings(parseStringRecord(settings));
   const next =
     mode === "fill" ? { ...incoming, ...prev } : { ...prev, ...incoming };
   try {

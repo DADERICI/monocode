@@ -35,6 +35,7 @@ import {
   type AgentModel,
   type ModelPickerTab,
   type ModelSetting,
+  hiddenModelSetting,
 } from "../model/models";
 import {
   isProviderHidden,
@@ -146,7 +147,7 @@ function pickerSettings(model: AgentModel): ModelSetting[] {
 /** Settings without the OpenCode agent row, which never shows in the menu. */
 function menuVisibleSettings(model: AgentModel): ModelSetting[] {
   return (model.settings ?? []).filter(
-    (setting) => !(model.harness === "opencode" && setting.id === "agent"),
+    (setting) => !hiddenModelSetting(model.harness, setting.id),
   );
 }
 
