@@ -12,9 +12,12 @@ import {
 } from "../../core/child";
 import {
   HERMES_AUTH_HELP,
+  HERMES_PROFILE_SETTING_ID,
+  hermesAcpArgs,
   hermesBackgroundDispatch,
   hermesCurrentModelId,
   hermesModeId,
+  hermesProfileName,
   hermesPromptBlocks,
   hermesSessionId,
   hermesStderrAuthError,
@@ -41,6 +44,8 @@ type Live = {
   acp: AcpClient;
   acpSessionId: string;
   cwd: string;
+  /** Named Hermes profile, or undefined for the default profile. */
+  profile: string | undefined;
   modelId: string;
   modeId: string;
   muteUpdates: boolean;
@@ -52,7 +57,16 @@ type Live = {
   turns: Promise<void>;
 };
 
-type Resume = { acpSessionId: string; cwd: string };
+// Each profile has its own session store, so a session only resumes under the
+// profile that created it. `unknown` marks state restored from disk, where the
+// profile was not recorded; session/load then fails over to session/new.
+type Resume = {
+  acpSessionId: string;
+  cwd: string;
+  profile: string | undefined | typeof UNKNOWN_PROFILE;
+};
+
+const UNKNOWN_PROFILE = Symbol("unknown-profile");
 
 const INIT_TIMEOUT_MS = 20_000;
 const SESSION_TIMEOUT_MS = 45_000;
@@ -175,12 +189,23 @@ export function bindHermesSession(
 ): void {
   const sessionId = acpSessionId.trim();
   if (!threadId || !sessionId || !cwd.trim()) return;
-  resumeByThread.set(threadId, { acpSessionId: sessionId, cwd });
+  resumeByThread.set(threadId, {
+    acpSessionId: sessionId,
+    cwd,
+    profile: UNKNOWN_PROFILE,
+  });
+}
+
+function sessionProfile(
+  modelSettings: Record<string, string> | undefined,
+): string | undefined {
+  return hermesProfileName(modelSettings?.[HERMES_PROFILE_SETTING_ID]);
 }
 
 async function ensureLive(input: HarnessSessionInput): Promise<Live> {
+  const profile = sessionProfile(input.modelSettings);
   const existing = liveByThread.get(input.sessionId);
-  if (existing && existing.cwd === input.cwd) {
+  if (existing && existing.cwd === input.cwd && existing.profile === profile) {
     existing.onEvent = input.onEvent;
     existing.runtimeMode = input.runtimeMode;
     existing.planning = input.intent === "plan";
@@ -192,9 +217,11 @@ async function ensureLive(input: HarnessSessionInput): Promise<Live> {
   }
 
   const resume = resumeByThread.get(input.sessionId);
-  const canLoad = resume != null && resume.cwd === input.cwd;
-  if (resume && resume.cwd !== input.cwd)
-    resumeByThread.delete(input.sessionId);
+  const canLoad =
+    resume != null &&
+    resume.cwd === input.cwd &&
+    (resume.profile === UNKNOWN_PROFILE || resume.profile === profile);
+  if (resume && !canLoad) resumeByThread.delete(input.sessionId);
 
   const { path } = await resolveHermesBinary();
   const handlers: AcpHandlers = {};
@@ -253,7 +280,7 @@ async function ensureLive(input: HarnessSessionInput): Promise<Live> {
   await spawnChild(
     input.sessionId,
     path,
-    ["acp"],
+    hermesAcpArgs(profile),
     input.cwd,
     undefined,
     "hermes",
@@ -316,6 +343,7 @@ async function ensureLive(input: HarnessSessionInput): Promise<Live> {
       acp,
       acpSessionId,
       cwd: input.cwd,
+      profile,
       modelId: hermesCurrentModelId(setup) ?? "",
       modeId: "",
       muteUpdates: didLoad,
@@ -328,7 +356,11 @@ async function ensureLive(input: HarnessSessionInput): Promise<Live> {
     };
     liveRef.current = live;
     liveByThread.set(input.sessionId, live);
-    resumeByThread.set(input.sessionId, { acpSessionId, cwd: input.cwd });
+    resumeByThread.set(input.sessionId, {
+      acpSessionId,
+      cwd: input.cwd,
+      profile,
+    });
     live.onEvent({
       type: "session.providerBound",
       providerSessionId: acpSessionId,

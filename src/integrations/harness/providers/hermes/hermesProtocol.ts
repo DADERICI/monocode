@@ -1,5 +1,8 @@
 import { promptBlocks, type PromptContentBlock } from "../../../../features/sessions/model/attachments";
-import type { AgentModel } from "../../../../features/sessions/model/models";
+import type {
+  AgentModel,
+  ModelSetting,
+} from "../../../../features/sessions/model/models";
 import type { Attachment, RuntimeMode } from "../../../../features/sessions/model/session";
 
 export type HermesBackgroundDispatch = {
@@ -126,6 +129,89 @@ export function hermesBackgroundDispatch(
     return { callId, delegationId, transcripts };
   }
   return null;
+}
+
+/** Model setting that picks which Hermes profile (`hermes -p <name>`) runs the chat. */
+export const HERMES_PROFILE_SETTING_ID = "profile";
+
+const DEFAULT_PROFILE = "default";
+
+// Mirrors Hermes' own PROFILE_ID_RE, so MonoCode never passes `-p` a name
+// Hermes would reject.
+const PROFILE_NAME_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+
+// Hermes only treats a directory under profiles/ as a profile when it holds
+// one of these files; bare directories left by logging or cron are ignored.
+const PROFILE_IDENTITY_FILES = new Set([
+  "config.yaml",
+  ".env",
+  "SOUL.md",
+  "profile.yaml",
+  "auth.json",
+  "state.db",
+]);
+
+/** A named profile to launch, or undefined for Hermes' default profile. */
+export function hermesProfileName(value: string | undefined): string | undefined {
+  const name = value?.trim() ?? "";
+  if (!name || name === DEFAULT_PROFILE || !PROFILE_NAME_RE.test(name)) {
+    return undefined;
+  }
+  return name;
+}
+
+/** Arguments for the ACP server, scoped to a named profile when one is set. */
+export function hermesAcpArgs(profile: string | undefined): string[] {
+  const name = hermesProfileName(profile);
+  return name ? ["-p", name, "acp"] : ["acp"];
+}
+
+/** True when a profile directory listing contains a Hermes identity file. */
+export function isHermesProfileDir(fileNames: string[]): boolean {
+  return fileNames.some((name) => PROFILE_IDENTITY_FILES.has(name));
+}
+
+/** Profile selector offered on every Hermes model once named profiles exist. */
+export function hermesProfileSetting(
+  profiles: string[],
+): ModelSetting | undefined {
+  const names = [
+    ...new Set(
+      profiles
+        .map((profile) => hermesProfileName(profile))
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ].sort();
+  if (names.length === 0) return undefined;
+  return {
+    id: HERMES_PROFILE_SETTING_ID,
+    label: "Profile",
+    kind: "select",
+    value: DEFAULT_PROFILE,
+    options: [
+      { value: DEFAULT_PROFILE, label: "Default" },
+      ...names.map((name) => ({ value: name, label: name })),
+    ],
+    description: "Hermes profile (bot) that runs this chat",
+  };
+}
+
+/** Attach the profile selector to a Hermes model catalog. */
+export function withHermesProfiles(
+  models: AgentModel[],
+  profiles: string[],
+): AgentModel[] {
+  const setting = hermesProfileSetting(profiles);
+  if (!setting) return models;
+  return models.map((model) => ({
+    ...model,
+    settings: [
+      ...(model.settings ?? []).filter(
+        (existing) => existing.id !== HERMES_PROFILE_SETTING_ID,
+      ),
+      setting,
+    ],
+  }));
 }
 
 /** Read the standard ACP SessionModelState returned by Hermes session/new. */

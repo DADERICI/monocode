@@ -1,5 +1,9 @@
-import { homeDir } from "../../../../platform/tauri/fs";
-import { setHarnessModels, type AgentModel } from "../../../../features/sessions/model/models";
+import { homeDir, listDir } from "../../../../platform/tauri/fs";
+import {
+  MODELS,
+  setHarnessModels,
+  type AgentModel,
+} from "../../../../features/sessions/model/models";
 import { AcpClient } from "../../core/acp";
 import {
   killChild,
@@ -8,7 +12,12 @@ import {
   unwatchChild,
   watchChild,
 } from "../../core/child";
-import { modelsFromHermesSession } from "./hermesProtocol";
+import {
+  isHermesProfileDir,
+  hermesProfileName,
+  modelsFromHermesSession,
+  withHermesProfiles,
+} from "./hermesProtocol";
 
 const PROBE_ID = "monocode-hermes-probe";
 const DISCOVERY_TIMEOUT_MS = 30_000;
@@ -18,9 +27,10 @@ let inflight: Promise<void> | null = null;
 
 export function refreshHermesCatalog(): Promise<void> {
   if (inflight) return inflight;
-  inflight = discoverHermesModels()
-    .then((models) => {
-      if (models.length > 0) setHarnessModels("hermes", models);
+  inflight = Promise.all([discoverHermesModels(), discoverHermesProfiles()])
+    .then(([models, profiles]) => {
+      if (models.length === 0) return;
+      setHarnessModels("hermes", catalogWithProfiles(models, profiles));
     })
     .catch((error: unknown) => {
       console.debug("[monocode] hermes catalog", error);
@@ -87,6 +97,49 @@ async function discoverHermesModels(): Promise<AgentModel[]> {
     );
   } finally {
     await stop();
+  }
+}
+
+/**
+ * With named profiles, lead with "Configured model" so a profile chat keeps
+ * that profile's own model instead of inheriting the default profile's pick.
+ */
+function catalogWithProfiles(
+  models: AgentModel[],
+  profiles: string[],
+): AgentModel[] {
+  if (profiles.length === 0) return models;
+  const configured = MODELS.find((model) => model.id === "hermes:default");
+  const listed = configured
+    ? [configured, ...models.filter((model) => model.id !== configured.id)]
+    : models;
+  return withHermesProfiles(listed, profiles);
+}
+
+/** Named profiles under ~/.hermes/profiles; the default profile is implicit. */
+async function discoverHermesProfiles(): Promise<string[]> {
+  try {
+    const home = await homeDir();
+    const entries = await listDir(`${home}/.hermes/profiles`);
+    const candidates = entries.filter(
+      (entry) => entry.isDir && hermesProfileName(entry.name),
+    );
+    const profiles = await Promise.all(
+      candidates.map(async (entry) => {
+        try {
+          const files = await listDir(entry.path);
+          return isHermesProfileDir(files.map((file) => file.name))
+            ? entry.name
+            : undefined;
+        } catch {
+          return undefined;
+        }
+      }),
+    );
+    return profiles.filter((name): name is string => Boolean(name));
+  } catch {
+    // No profiles directory simply means the default profile only.
+    return [];
   }
 }
 

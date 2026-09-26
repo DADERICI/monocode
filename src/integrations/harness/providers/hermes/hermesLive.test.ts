@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sent: string[] = [];
+const spawns: string[][] = [];
 let onLine: ((line: string) => void) | undefined;
 let onStderr: ((line: string) => void) | undefined;
 const textFiles = new Map<string, string>();
 
 vi.mock("../../core/child", () => ({
   resolveHermesBinary: async () => ({ path: "/fake/hermes" }),
-  spawnChild: async () => undefined,
+  spawnChild: async (_id: string, _path: string, args: string[]) => {
+    spawns.push(args);
+  },
   killChild: async () => undefined,
   unwatchChild: () => undefined,
   watchChild: (
@@ -80,9 +83,52 @@ async function newSession() {
 describe("Hermes live ACP sequence", () => {
   beforeEach(() => {
     sent.length = 0;
+    spawns.length = 0;
     onLine = undefined;
     onStderr = undefined;
     textFiles.clear();
+  });
+
+  it("runs the chat's Hermes profile and restarts when the profile changes", async () => {
+    const answer = async (method: string, occurrence: number) => {
+      const matches = () =>
+        parse().filter((message) => message.method === method);
+      await waitFor(() => matches().length >= occurrence, method);
+      const request = matches()[occurrence - 1];
+      const result =
+        method === "session/new"
+          ? { sessionId: `profile-session-${occurrence}` }
+          : method === "session/prompt"
+            ? { stopReason: "end_turn" }
+            : {};
+      reply(request.id, result);
+    };
+    const turn = (profile: string | undefined, occurrence: number) => {
+      const done = sendHermesTurn({
+        sessionId: "hermes-live-profile",
+        cwd: "/repo",
+        model: "hermes:default",
+        modelSettings: profile ? { profile } : {},
+        runtimeMode: "supervised",
+        text: "hello",
+        onEvent: () => undefined,
+      });
+      return (async () => {
+        await answer("initialize", occurrence);
+        await answer("session/new", occurrence);
+        await answer("session/set_mode", occurrence);
+        await answer("session/prompt", occurrence);
+        await done;
+      })();
+    };
+
+    await turn("builder", 1);
+    expect(spawns).toEqual([["-p", "builder", "acp"]]);
+
+    await turn(undefined, 2);
+    expect(spawns).toEqual([["-p", "builder", "acp"], ["acp"]]);
+
+    await stopHermesSession("hermes-live-profile");
   });
 
   it("starts Hermes ACP, selects model and mode, and sends attachments", async () => {

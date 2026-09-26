@@ -1,14 +1,92 @@
 import { describe, expect, it } from "vitest";
 import {
+  HERMES_PROFILE_SETTING_ID,
+  hermesAcpArgs,
   hermesCurrentModelId,
   hermesBackgroundDispatch,
   hermesModeId,
+  hermesProfileName,
+  hermesProfileSetting,
+  isHermesProfileDir,
+  withHermesProfiles,
   hermesPromptBlocks,
   hermesSessionId,
   hermesStderrAuthError,
   hermesStartupError,
   modelsFromHermesSession,
 } from "./hermesProtocol";
+
+describe("Hermes profiles", () => {
+  it("launches the default profile with a bare acp command", () => {
+    expect(hermesAcpArgs(undefined)).toEqual(["acp"]);
+    expect(hermesAcpArgs("")).toEqual(["acp"]);
+    expect(hermesAcpArgs("default")).toEqual(["acp"]);
+  });
+
+  it("scopes a named profile with -p before the subcommand", () => {
+    expect(hermesAcpArgs("builder")).toEqual(["-p", "builder", "acp"]);
+    expect(hermesAcpArgs("  qa_bot-2  ")).toEqual(["-p", "qa_bot-2", "acp"]);
+  });
+
+  it("rejects names Hermes would not accept as a profile", () => {
+    for (const name of ["Builder", "-rm", "a b", "../etc", "x".repeat(65)]) {
+      expect(hermesProfileName(name)).toBeUndefined();
+      expect(hermesAcpArgs(name)).toEqual(["acp"]);
+    }
+  });
+
+  it("recognises profile directories by their identity files", () => {
+    expect(isHermesProfileDir(["config.yaml", "logs"])).toBe(true);
+    expect(isHermesProfileDir([".env"])).toBe(true);
+    expect(isHermesProfileDir(["logs", "cron"])).toBe(false);
+    expect(isHermesProfileDir([])).toBe(false);
+  });
+
+  it("offers no selector until a named profile exists", () => {
+    expect(hermesProfileSetting([])).toBeUndefined();
+    expect(hermesProfileSetting(["default", "Not Valid"])).toBeUndefined();
+  });
+
+  it("lists Default first, then valid unique profiles in order", () => {
+    const setting = hermesProfileSetting(["tester", "builder", "tester", "BAD"]);
+    expect(setting).toMatchObject({
+      id: HERMES_PROFILE_SETTING_ID,
+      kind: "select",
+      value: "default",
+    });
+    expect(setting?.options.map((option) => option.value)).toEqual([
+      "default",
+      "builder",
+      "tester",
+    ]);
+  });
+
+  it("attaches the selector to every model without duplicating it", () => {
+    const models = withHermesProfiles(
+      [
+        { id: "hermes:zai:glm-5.3", harness: "hermes", name: "GLM 5.3" },
+        {
+          id: "hermes:zai:glm-5.3-flash",
+          harness: "hermes",
+          name: "GLM 5.3 Flash",
+          settings: [hermesProfileSetting(["old"])!],
+        },
+      ],
+      ["builder"],
+    );
+    for (const model of models) {
+      const profiles = (model.settings ?? []).filter(
+        (setting) => setting.id === HERMES_PROFILE_SETTING_ID,
+      );
+      expect(profiles).toHaveLength(1);
+      expect(profiles[0].options.map((option) => option.value)).toEqual([
+        "default",
+        "builder",
+      ]);
+    }
+    expect(withHermesProfiles(models, [])).toBe(models);
+  });
+});
 
 describe("Hermes ACP protocol", () => {
   it("maps access modes onto Hermes edit approval modes", () => {
