@@ -11,6 +11,8 @@ export type HermesProfile = {
   /** `default`, or the name passed to `hermes -p`. */
   name: string;
   isDefault: boolean;
+  /** The profile's HERMES_HOME, which holds its SOUL.md and config.yaml. */
+  home: string;
   /** Model from the profile's config.yaml, e.g. `zai/glm-5.3-flash`. */
   model?: string;
   /** First line of the profile's SOUL.md. */
@@ -113,6 +115,7 @@ async function readProfile(
   return {
     name,
     isDefault,
+    home,
     model: config ? hermesConfiguredModel(config) : undefined,
     summary: soul ? hermesSoulSummary(soul) : undefined,
   };

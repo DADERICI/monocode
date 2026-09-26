@@ -68,10 +68,6 @@ import type { LiveAgent } from "../../features/sessions/model/liveAgents";
 import { LiveAgentsPreview } from "../../features/sessions/ui/LiveAgentsPreview";
 import { ProjectLogoIcon } from "../../features/projects/ui/ProjectLogoIcon";
 import { ProjectMascot } from "../../features/projects/ui/ProjectMascot";
-import {
-  HermesBotSection,
-  type HermesBotsProps,
-} from "../../features/sessions/ui/HermesBotSection";
 import { RailAction, RailSearch } from "./RailAction";
 import { DevModeSlot, TabVisitNav } from "./TitleBar";
 import { SidebarUpdateFooter } from "./SidebarUpdate";
@@ -120,8 +116,6 @@ type Props = {
   updateNotice?: InstalledUpdate | null;
   onOpenWhatsNew?: (version: string) => void;
   onDismissUpdate?: () => void;
-  /** Hermes profiles to list under Projects; only set for Hermes chats. */
-  hermesBots?: HermesBotsProps;
 };
 
 export function ProjectRail({
@@ -158,7 +152,6 @@ export function ProjectRail({
   updateNotice = null,
   onOpenWhatsNew,
   onDismissUpdate,
-  hermesBots,
 }: Props) {
   const resize = useDragResize({
     min: PROJECT_RAIL_WIDTH_MIN,
@@ -502,7 +495,6 @@ export function ProjectRail({
               groupLogos={groupLogos}
               groupMascots={groupMascots}
             />
-            {hermesBots ? <HermesBotSection {...hermesBots} /> : null}
           </div>
           <LiveAgentsPreview
             agents={liveAgents}

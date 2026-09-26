@@ -61,6 +61,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Sidebar } from "./shell/Sidebar";
+import { HermesBotsSidebar } from "../features/sessions/ui/HermesBotsSidebar";
 import { ApprovalToasts } from "../features/sessions/ui/ApprovalToasts";
 import { WhatsNewDialog } from "./shell/WhatsNewDialog";
 import { ProviderSignInDialog } from "../features/sessions/ui/ProviderSignInDialog";
@@ -2170,18 +2171,6 @@ export default function App({
       sessionDefaults?.runtimeMode,
       projectCwd,
     ],
-  );
-
-  const activeHermesProfile =
-    active?.harness === "hermes"
-      ? active.modelSettings?.profile || "default"
-      : undefined;
-  const hermesBots = useMemo(
-    () =>
-      activeHermesProfile
-        ? { activeProfile: activeHermesProfile, onStartChat: onStartBotChat }
-        : undefined,
-    [activeHermesProfile, onStartBotChat],
   );
 
   const onStartInboxItem = useCallback(
@@ -5422,6 +5411,22 @@ export default function App({
       })();
     },
     [activateTab, insertBesideActive],
+  );
+
+  const activeHermesProfile =
+    active?.harness === "hermes"
+      ? active.modelSettings?.profile || "default"
+      : undefined;
+  const hermesBots = useMemo(
+    () =>
+      activeHermesProfile
+        ? {
+            activeProfile: activeHermesProfile,
+            onStartChat: onStartBotChat,
+            onOpenFile,
+          }
+        : undefined,
+    [activeHermesProfile, onStartBotChat, onOpenFile],
   );
 
   const onOpenPlan = useCallback(
@@ -10222,7 +10227,6 @@ export default function App({
               onOpenProject={pickProject}
               onRemoveProject={onRemoveProject}
               onNew={onNew}
-              hermesBots={hermesBots}
               openSessions={openProjectSessions}
               onNewTerminal={onNewTerminal}
               onSearch={onOpenSearch}
@@ -10253,6 +10257,7 @@ export default function App({
               onOpenWhatsNew={onOpenWhatsNew}
               onDismissUpdate={() => setUpdateNotice(null)}
             />
+            {hermesBots ? <HermesBotsSidebar {...hermesBots} /> : null}
 
             <div className="body-glass flex min-h-0 min-w-0 flex-1 flex-col">
               <div
