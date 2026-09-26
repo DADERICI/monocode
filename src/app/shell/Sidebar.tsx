@@ -51,6 +51,7 @@ import { IS_MAC, MOD } from "../../platform/tauri/platform";
 import { resolveModel } from "../../features/sessions/model/models";
 import type { OpenFileFn } from "../../features/search/model/search";
 import { sessionDisplayTitle } from "../../features/sessions/model/session";
+import type { HermesBotsProps } from "../../features/sessions/ui/HermesBotSection";
 import { nextUnseenFinishedSessions } from "../../features/sessions/model/sessionDone";
 import { orchestrationTaskLabel } from "../../features/orchestration/model/orchestrationSummary";
 import {
@@ -257,6 +258,8 @@ type Props = {
   onOpenProject?: () => void;
   onRemoveProject?: (path: string, options: { purgeData: boolean }) => void;
   onNew?: () => string | void;
+  /** Hermes bots for the project rail; only set while a Hermes chat is active. */
+  hermesBots?: HermesBotsProps;
   onNewTerminal?: () => void;
   onSearch?: () => void;
   onOpenInbox?: () => void;
@@ -345,6 +348,7 @@ function SidebarComponent({
   onOpenProject,
   onRemoveProject,
   onNew,
+  hermesBots,
   onSearch,
   onOpenInbox,
   onOpenInboxItem,
@@ -1974,6 +1978,7 @@ function SidebarComponent({
           updateNotice={updateNotice}
           onOpenWhatsNew={onOpenWhatsNew}
           onDismissUpdate={onDismissUpdate}
+          hermesBots={hermesBots}
         />
       ) : null}
       {sidebarVisible ? sidebarContent : null}
