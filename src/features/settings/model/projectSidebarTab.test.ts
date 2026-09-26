@@ -46,17 +46,6 @@ describe("project Workspace tab", () => {
     expect(loadProjectSidebarTab("/work/new")).toBe("files");
   });
 
-  it("remembers Bots but never picks it as a new project's default", () => {
-    saveProjectSidebarTab("/work/one", "bots");
-    expect(loadProjectSidebarTab("/work/one")).toBe("bots");
-
-    localStorage.setItem(
-      "monocode.sidebarTabOrder",
-      JSON.stringify(["bots", "inbox", "changes", "files", "sessions"]),
-    );
-    expect(loadProjectSidebarTab("/work/new")).toBe("changes");
-  });
-
   it("follows a project rename and clears a deleted project's choice", () => {
     saveProjectSidebarTab("/work/one", "files");
     rebaseProjectSidebarTab("/work/one", "/work/renamed");

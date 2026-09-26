@@ -61,6 +61,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Sidebar } from "./shell/Sidebar";
+import { HermesBotRail } from "../features/sessions/ui/HermesBotRail";
 import { ApprovalToasts } from "../features/sessions/ui/ApprovalToasts";
 import { WhatsNewDialog } from "./shell/WhatsNewDialog";
 import { ProviderSignInDialog } from "../features/sessions/ui/ProviderSignInDialog";
@@ -10210,7 +10211,6 @@ export default function App({
               onOpenProject={pickProject}
               onRemoveProject={onRemoveProject}
               onNew={onNew}
-              onStartBotChat={onStartBotChat}
               openSessions={openProjectSessions}
               onNewTerminal={onNewTerminal}
               onSearch={onOpenSearch}
@@ -10241,6 +10241,12 @@ export default function App({
               onOpenWhatsNew={onOpenWhatsNew}
               onDismissUpdate={() => setUpdateNotice(null)}
             />
+            {active?.harness === "hermes" ? (
+              <HermesBotRail
+                activeProfile={active.modelSettings?.profile || "default"}
+                onStartChat={onStartBotChat}
+              />
+            ) : null}
 
             <div className="body-glass flex min-h-0 min-w-0 flex-1 flex-col">
               <div

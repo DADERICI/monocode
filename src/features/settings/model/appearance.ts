@@ -100,15 +100,13 @@ export const SHOW_EXCLUDED_FILES_DEFAULT = false;
 export const SHOW_EXCLUDED_FILES_CHANGE_EVENT =
   "monocode:showexcludedfileschange";
 
-/** `bots` lists Hermes Agent profiles; the sidebar hides it without Hermes. */
-export type SidebarTabId = "files" | "sessions" | "changes" | "inbox" | "bots";
+export type SidebarTabId = "files" | "sessions" | "changes" | "inbox";
 
 const DEFAULT_SIDEBAR_TAB_ORDER: SidebarTabId[] = [
   "sessions",
   "inbox",
   "files",
   "changes",
-  "bots",
 ];
 
 export const THEME_HUE_MIN = 0;
@@ -668,8 +666,7 @@ function isSidebarTabId(value: unknown): value is SidebarTabId {
     value === "files" ||
     value === "sessions" ||
     value === "changes" ||
-    value === "inbox" ||
-    value === "bots"
+    value === "inbox"
   );
 }
 

@@ -7,12 +7,7 @@ type ProjectSidebarTab = Exclude<SidebarTabId, "inbox">;
 type StoredTabs = Record<string, ProjectSidebarTab>;
 
 function isProjectSidebarTab(value: unknown): value is ProjectSidebarTab {
-  return (
-    value === "sessions" ||
-    value === "files" ||
-    value === "changes" ||
-    value === "bots"
-  );
+  return value === "sessions" || value === "files" || value === "changes";
 }
 
 function readAll(): StoredTabs {
@@ -40,15 +35,7 @@ function writeAll(tabs: StoredTabs): void {
 
 export function loadProjectSidebarTab(project: string): ProjectSidebarTab {
   const saved = readAll()[pathKey(project)];
-  return (
-    saved ??
-    // Bots only exists with Hermes, so it never becomes the implicit default.
-    loadSidebarTabOrder().find(
-      (tab): tab is ProjectSidebarTab =>
-        tab !== "bots" && isProjectSidebarTab(tab),
-    ) ??
-    "sessions"
-  );
+  return saved ?? loadSidebarTabOrder().find(isProjectSidebarTab) ?? "sessions";
 }
 
 export function saveProjectSidebarTab(
