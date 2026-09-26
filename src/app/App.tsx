@@ -2140,6 +2140,38 @@ export default function App({
     projectCwd,
   ]);
 
+  // A Bots-tab pick: a fresh Hermes chat run as that profile. The profile is
+  // set after creation because newSession layers the last-used settings on
+  // top, and the catalog may not list the profile yet.
+  const onStartBotChat = useCallback(
+    (profile: string) => {
+      setSearchViewOpen(false);
+      setInboxViewOpen(false);
+      setNotesViewOpen(false);
+      setAutomationsViewOpen(false);
+      const cwd = active?.cwd ?? sessionDefaults?.cwd ?? projectCwd;
+      const session = newSession(
+        "hermes",
+        cwd,
+        "hermes:default",
+        sessionDefaults?.runtimeMode,
+      );
+      session.modelSettings = { ...session.modelSettings, profile };
+      const tab = newTab(session.id);
+      setSessions((prev) => [...prev, session]);
+      appendTab(tab, cwd);
+      setActiveTabId(tab.id);
+      setComposerFocused(true);
+    },
+    [
+      active?.cwd,
+      appendTab,
+      sessionDefaults?.cwd,
+      sessionDefaults?.runtimeMode,
+      projectCwd,
+    ],
+  );
+
   const onStartInboxItem = useCallback(
     async (item: InboxItem, body?: string) => {
       const start = (description?: string) => {
@@ -10178,6 +10210,7 @@ export default function App({
               onOpenProject={pickProject}
               onRemoveProject={onRemoveProject}
               onNew={onNew}
+              onStartBotChat={onStartBotChat}
               openSessions={openProjectSessions}
               onNewTerminal={onNewTerminal}
               onSearch={onOpenSearch}

@@ -3,6 +3,7 @@ import { OrchestrationSidebarAgents } from "../../features/orchestration/ui/Orch
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   Archive,
+  Bot,
   Chatting,
   Check,
   ChevronDown,
@@ -51,6 +52,10 @@ import { IS_MAC, MOD } from "../../platform/tauri/platform";
 import { resolveModel } from "../../features/sessions/model/models";
 import type { OpenFileFn } from "../../features/search/model/search";
 import { sessionDisplayTitle } from "../../features/sessions/model/session";
+import {
+  HermesBotsPanel,
+  useHermesBotsAvailable,
+} from "../../features/sessions/ui/HermesBotsPanel";
 import { nextUnseenFinishedSessions } from "../../features/sessions/model/sessionDone";
 import { orchestrationTaskLabel } from "../../features/orchestration/model/orchestrationSummary";
 import {
@@ -166,6 +171,7 @@ const TAB_LABELS: Record<SidebarTab, string> = {
   inbox: "Inbox",
   files: "Explorer",
   changes: "Changes",
+  bots: "Bots",
 };
 
 const COMPACT_TAB_ICONS: Record<SidebarTab, typeof PanelLeft> = {
@@ -173,6 +179,7 @@ const COMPACT_TAB_ICONS: Record<SidebarTab, typeof PanelLeft> = {
   inbox: Inbox,
   files: FileScript,
   changes: GitBranch,
+  bots: Bot,
 };
 
 function projectPathBusy(
@@ -257,6 +264,8 @@ type Props = {
   onOpenProject?: () => void;
   onRemoveProject?: (path: string, options: { purgeData: boolean }) => void;
   onNew?: () => string | void;
+  /** Start a new Hermes chat run as this profile, from the Bots tab. */
+  onStartBotChat?: (profile: string) => void;
   onNewTerminal?: () => void;
   onSearch?: () => void;
   onOpenInbox?: () => void;
@@ -319,7 +328,7 @@ function SidebarComponent({
   onOpenTerminal,
   onFileMoved,
   onFileDeleted,
-  tab,
+  tab: requestedTab,
   onTabChange,
   filesSearchOpen,
   onFilesSearchOpenChange,
@@ -345,6 +354,7 @@ function SidebarComponent({
   onOpenProject,
   onRemoveProject,
   onNew,
+  onStartBotChat,
   onSearch,
   onOpenInbox,
   onOpenInboxItem,
@@ -373,6 +383,11 @@ function SidebarComponent({
   onOpenWhatsNew,
   onDismissUpdate,
 }: Props) {
+  // Bots only exists while Hermes is installed; a remembered Bots tab falls
+  // back to Sessions when it is not.
+  const botsAvailable = useHermesBotsAvailable() && Boolean(onStartBotChat);
+  const tab: SidebarTab =
+    requestedTab === "bots" && !botsAvailable ? "sessions" : requestedTab;
   const gitRoot = gitCwd || cwd;
   const resize = useDragResize({
     min: MIN_WIDTH,
@@ -548,11 +563,13 @@ function SidebarComponent({
   const sessionListKey = `${cwd}\0${sessionFilters.showArchived}\0${sessionFilters.time}\0${sessionFilters.hiddenHarnesses.join(",")}\0${sessionFilters.status.working}\0${sessionFilters.status.needsApproval}\0${sessionFilters.status.done}\0${searchQuery}`;
   const sessionHarnesses = harnessesInSessions(sessions);
   const narrowedByUser = searchNarrowed || filtersActive;
-  const visibleTabs = tabOrder.filter((itemId) => itemId !== "inbox");
+  const tabHidden = (itemId: SidebarTab) =>
+    itemId === "inbox" || (itemId === "bots" && !botsAvailable);
+  const visibleTabs = tabOrder.filter((itemId) => !tabHidden(itemId));
   const sortable = useAnimatedReorder(visibleTabs, (ids) => {
     let index = 0;
     const next = tabOrder.map((itemId) =>
-      itemId === "inbox" ? itemId : ids[index++],
+      tabHidden(itemId) ? itemId : ids[index++],
     );
     setTabOrder(next);
     saveSidebarTabOrder(next);
@@ -1784,6 +1801,11 @@ function SidebarComponent({
             </div>
           )}
         </div>
+        {tab === "bots" && onStartBotChat ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            <HermesBotsPanel onStartChat={onStartBotChat} />
+          </div>
+        ) : null}
         {tab === "changes" ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <SourceControl

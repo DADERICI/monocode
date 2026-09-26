@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   HERMES_PROFILE_SETTING_ID,
   hermesAcpArgs,
+  hermesConfiguredModel,
   hermesCurrentModelId,
+  hermesSoulSummary,
   hermesBackgroundDispatch,
   hermesModeId,
   hermesProfileName,
@@ -59,6 +61,34 @@ describe("Hermes profiles", () => {
       "builder",
       "tester",
     ]);
+  });
+
+  it("reads a profile's configured model from config.yaml", () => {
+    expect(
+      hermesConfiguredModel(
+        "# settings\nmodel:\n  default: zai/glm-5.3-flash\n  provider: auto\nterminal:\n  cwd: .\n",
+      ),
+    ).toBe("zai/glm-5.3-flash");
+    expect(hermesConfiguredModel('model: "anthropic/claude-sonnet-5" # pin\n')).toBe(
+      "anthropic/claude-sonnet-5",
+    );
+    expect(
+      hermesConfiguredModel("model:\n  provider: auto\ndisplay:\n  default: x\n"),
+    ).toBeUndefined();
+    expect(hermesConfiguredModel("terminal:\n  cwd: .\n")).toBeUndefined();
+  });
+
+  it("summarises a SOUL.md as its first line of prose", () => {
+    expect(
+      hermesSoulSummary(
+        "# Identity\n\nYou are **Builder**, a pragmatic engineer bot.\n\n# Style\nDirect.",
+      ),
+    ).toBe("You are Builder, a pragmatic engineer bot.");
+    expect(hermesSoulSummary("<!-- note -->\n- Sceptical QA bot\n")).toBe(
+      "Sceptical QA bot",
+    );
+    expect(hermesSoulSummary("# Only headings\n\n## Here\n")).toBeUndefined();
+    expect(hermesSoulSummary("x".repeat(200), 10)).toBe("xxxxxxxxx…");
   });
 
   it("attaches the selector to every model without duplicating it", () => {

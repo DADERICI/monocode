@@ -1,4 +1,4 @@
-import { homeDir, listDir } from "../../../../platform/tauri/fs";
+import { homeDir } from "../../../../platform/tauri/fs";
 import {
   MODELS,
   setHarnessModels,
@@ -12,12 +12,8 @@ import {
   unwatchChild,
   watchChild,
 } from "../../core/child";
-import {
-  isHermesProfileDir,
-  hermesProfileName,
-  modelsFromHermesSession,
-  withHermesProfiles,
-} from "./hermesProtocol";
+import { modelsFromHermesSession, withHermesProfiles } from "./hermesProtocol";
+import { namedHermesProfiles, refreshHermesProfiles } from "./hermesProfiles";
 
 const PROBE_ID = "monocode-hermes-probe";
 const DISCOVERY_TIMEOUT_MS = 30_000;
@@ -27,7 +23,10 @@ let inflight: Promise<void> | null = null;
 
 export function refreshHermesCatalog(): Promise<void> {
   if (inflight) return inflight;
-  inflight = Promise.all([discoverHermesModels(), discoverHermesProfiles()])
+  inflight = Promise.all([
+    discoverHermesModels(),
+    refreshHermesProfiles().then(() => namedHermesProfiles()),
+  ])
     .then(([models, profiles]) => {
       if (models.length === 0) return;
       setHarnessModels("hermes", catalogWithProfiles(models, profiles));
@@ -114,33 +113,6 @@ function catalogWithProfiles(
     ? [configured, ...models.filter((model) => model.id !== configured.id)]
     : models;
   return withHermesProfiles(listed, profiles);
-}
-
-/** Named profiles under ~/.hermes/profiles; the default profile is implicit. */
-async function discoverHermesProfiles(): Promise<string[]> {
-  try {
-    const home = await homeDir();
-    const entries = await listDir(`${home}/.hermes/profiles`);
-    const candidates = entries.filter(
-      (entry) => entry.isDir && hermesProfileName(entry.name),
-    );
-    const profiles = await Promise.all(
-      candidates.map(async (entry) => {
-        try {
-          const files = await listDir(entry.path);
-          return isHermesProfileDir(files.map((file) => file.name))
-            ? entry.name
-            : undefined;
-        } catch {
-          return undefined;
-        }
-      }),
-    );
-    return profiles.filter((name): name is string => Boolean(name));
-  } catch {
-    // No profiles directory simply means the default profile only.
-    return [];
-  }
 }
 
 function withTimeout<T>(

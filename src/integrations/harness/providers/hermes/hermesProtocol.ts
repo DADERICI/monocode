@@ -196,6 +196,47 @@ export function hermesProfileSetting(
   };
 }
 
+/**
+ * The model a profile's config.yaml selects (`model.default`, or a scalar
+ * `model:`). A light line scan, not a YAML parser: it only reads that key.
+ */
+export function hermesConfiguredModel(configYaml: string): string | undefined {
+  const lines = configYaml.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const top = /^model:\s*(.*?)\s*$/.exec(lines[index]);
+    if (!top) continue;
+    const scalar = unquoteYaml(top[1]);
+    if (scalar) return scalar;
+    for (let next = index + 1; next < lines.length; next += 1) {
+      const line = lines[next];
+      if (/^\S/.test(line)) break;
+      const nested = /^\s+default:\s*(.*?)\s*$/.exec(line);
+      if (nested) return unquoteYaml(nested[1]) || undefined;
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+/** First line of prose in a SOUL.md, for a one-line bot description. */
+export function hermesSoulSummary(soul: string, maxLength = 90): string | undefined {
+  for (const raw of soul.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#") || line.startsWith("<!--")) continue;
+    const text = line.replace(/^[-*>]\s+/, "").replace(/[*_`]/g, "").trim();
+    if (!text) continue;
+    return text.length > maxLength
+      ? `${text.slice(0, maxLength - 1).trimEnd()}…`
+      : text;
+  }
+  return undefined;
+}
+
+function unquoteYaml(value: string): string {
+  const text = value.replace(/\s+#.*$/, "").trim();
+  return text.replace(/^(["'])(.*)\1$/, "$2").trim();
+}
+
 /** Attach the profile selector to a Hermes model catalog. */
 export function withHermesProfiles(
   models: AgentModel[],
