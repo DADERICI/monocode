@@ -52,6 +52,7 @@ import { resolveModel } from "../../features/sessions/model/models";
 import type { OpenFileFn } from "../../features/search/model/search";
 import { sessionDisplayTitle } from "../../features/sessions/model/session";
 import { botForSession } from "../../features/sessions/model/hermesBotChats";
+import { displayModelName } from "../../features/sessions/model/modelDisplay";
 import {
   loadTabGroupLabels,
   resolveTabGroupLabel,
@@ -2781,12 +2782,12 @@ const SessionCard = memo(function SessionCard({
   const time = formatRelative(session.updatedAt, now);
   const bot =
     session.harness === "hermes" ? botForSession(session.id) : undefined;
-  // A bot chat is labelled by its bot, as its model is the bot's own config.
+  // A bot chat names its bot and the model that bot runs on.
   const model =
     compact && !orchestrationExpanded
       ? null
       : bot
-        ? `Bot · ${resolveTabGroupLabel(hermesBotAppearanceKey(bot), loadTabGroupLabels(), bot)}`
+        ? `${resolveTabGroupLabel(hermesBotAppearanceKey(bot), loadTabGroupLabels(), bot)} · ${displayModelName(session.harness, session.model, { profile: bot })}`
         : resolveModel(session.harness, session.model).name;
   const statusClass = needsApproval
     ? "text-amber-400"

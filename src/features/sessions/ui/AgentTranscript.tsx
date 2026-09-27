@@ -61,7 +61,8 @@ import type { Attachment } from "../model/session";
 import { visibleUserPrompt } from "../../orchestration/model/orchestration";
 import { playCue } from "../../settings/model/sounds";
 import { legacyTaskListFromText } from "../model/taskList";
-import { resolveModel } from "../model/models";
+
+import { displayModelName } from "../model/modelDisplay";
 import { btwOpenTargetTurnId, btwSurfaceHarness } from "../model/btw";
 import { harnessForTurn } from "../model/secondOpinion";
 import { Shimmer } from "../../../shared/ui/Shimmer";
@@ -323,7 +324,7 @@ function AgentTranscriptComponent({
     if (lastUserId && !anchorTurn) setAnchorTurn(true);
   }
   const currentModelName = harness
-    ? resolveModel(harness, model).name
+    ? displayModelName(harness, model, modelSettings)
     : undefined;
   const waitingForApproval = hasPendingApproval(blocks) || pendingQuestion;
   const preparingHandoff = blocks.some(

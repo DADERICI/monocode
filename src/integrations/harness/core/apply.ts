@@ -19,7 +19,7 @@ import {
 import { joinStreamText } from "./streamText";
 import { taskListText } from "../../../features/sessions/model/taskList";
 import { isReviewablePlan } from "../../../features/sessions/model/plan";
-import { resolveModel } from "../../../features/sessions/model/models";
+import { displayModelName } from "../../../features/sessions/model/modelDisplay";
 import type { HarnessEvent } from "./types";
 
 export function applyHarnessEvent(
@@ -398,12 +398,15 @@ function userTurnFields(extra?: UserTurnExtra) {
 }
 
 function turnModelFields(session: Session) {
-  const model = resolveModel(session.harness, session.model);
   return {
     turnModel: {
       harness: session.harness,
       id: session.model,
-      name: model.name,
+      name: displayModelName(
+        session.harness,
+        session.model,
+        session.modelSettings,
+      ),
     },
   };
 }

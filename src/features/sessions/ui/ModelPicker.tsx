@@ -37,6 +37,7 @@ import {
   type ModelSetting,
   hiddenModelSetting,
 } from "../model/models";
+import { displayModelName } from "../model/modelDisplay";
 import {
   isProviderHidden,
   projectProvidersRevision,
@@ -271,6 +272,8 @@ export function ModelPicker({
   recentOpenRef.current = recentMenu != null;
 
   const current = resolveModel(harness, model);
+  // A Hermes bot chat names the model its bot is configured with.
+  const currentName = displayModelName(harness, model, values);
   currentRef.current = current;
   const settings = useMemo(() => {
     void catalogVersion;
@@ -298,7 +301,7 @@ export function ModelPicker({
   const triggerTitle = [
     HARNESS_TITLE[current.harness],
     current.provider?.name,
-    current.name,
+    currentName,
     triggerEffortLabel,
   ]
     .filter(Boolean)
@@ -638,7 +641,7 @@ export function ModelPicker({
         title={`${triggerTitle} · Recent models: right-click or ${MOD}.`}
         aria-label={`${HARNESS_TITLE[current.harness]}${
           current.provider ? `, ${current.provider.name},` : ""
-        } ${current.name}${
+        } ${currentName}${
           triggerEffortLabel ? `, effort ${triggerEffortLabel}` : ""
         }`}
         aria-keyshortcuts={`${MOD}.`}
@@ -658,7 +661,7 @@ export function ModelPicker({
         }`}
       >
         <HarnessIcon harness={current.harness} className="size-4 shrink-0" />
-        <span className="min-w-0 truncate text-[11px]">{current.name}</span>
+        <span className="min-w-0 truncate text-[11px]">{currentName}</span>
         {triggerEffortLabel ? (
           <span className="shrink-0 text-[11px] text-content/50">
             {triggerEffortLabel}
@@ -739,7 +742,7 @@ export function ModelPicker({
                         harness={current.harness}
                         className="size-3.5 shrink-0"
                       />
-                      <span className="min-w-0 truncate">{current.name}</span>
+                      <span className="min-w-0 truncate">{currentName}</span>
                     </span>
                     <ChevronRight
                       className="size-3.5 shrink-0 text-content/45"
